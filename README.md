@@ -34,3 +34,69 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+
+
+## File structure 
+
+thesis-web/
+├── src/
+│   ├── app/                      # Next.js App Router
+│   │   ├── [ticker]/             # Dynamic company page (/VOLV-B, /EVO ...)
+│   │   │   ├── page.tsx          #   Server: fetches company + EODHD price + metrics
+│   │   │   └── AskBox.tsx        #   Client: AI Q&A with source citations
+│   │   ├── dashboard/
+│   │   │   └── page.tsx          # Protected dashboard (requires login)
+│   │   ├── login/
+│   │   │   └── page.tsx          # Login (Supabase)
+│   │   ├── signup/
+│   │   │   └── page.tsx          # Sign up (Supabase)
+│   │   ├── layout.tsx            # Root layout, fonts, nav, OMXS30
+│   │   ├── page.tsx              # Landing page (hero, search, showcases)
+│   │   ├── globals.css           # Tailwind v4 @theme (tokens, keyframes)
+│   │   └── favicon.ico
+│   │
+│   ├── components/               # Reusable UI components
+│   │   ├── Nav.tsx               # Navbar (scroll styling, OMXS30)
+│   │   ├── NavAuth.tsx           # Logged-in / logged-out toggle in the nav
+│   │   ├── SignOutButton.tsx     # Sign out
+│   │   ├── Hero.tsx              # Hero section with 3D terrain
+│   │   ├── HeroSearch.tsx        # Search box (typewriter + chips)
+│   │   ├── TerrainCanvas.tsx     # 3D terrain on canvas
+│   │   ├── Ticker.tsx            # Scrolling price tape
+│   │   ├── PriceChart.tsx        # Self-drawing price chart (SVG)
+│   │   ├── ThesisCard.tsx        # Thesis card with sparkline
+│   │   ├── QADemo.tsx            # Q&A demo on the landing page
+│   │   ├── Tilt.tsx              # 3D tilt + magnetic buttons
+│   │   ├── Reveal.tsx            # Scroll reveal + CountUp
+│   │   ├── Grain.tsx             # Film grain effect (SVG)
+│   │   └── Footer.tsx
+│   │
+│   ├── hooks/
+│   │   └── useMotion.ts          # useReducedMotion, useInView, useFinePointer
+│   │
+│   ├── lib/
+│   │   ├── api.ts                # Client for thesis-api (getCompany, askCompany, getMetrics)
+│   │   ├── types.ts              # TS types mirror the backend's Pydantic models
+│   │   ├── market.ts             # EODHD: quotes, history, chart builder
+│   │   └── supabase/
+│   │       ├── client.ts         # Browser client (client components)
+│   │       ├── server.ts         # Server client (server components)
+│   │       └── middleware.ts     # updateSession — token refresh
+│   │
+│   └── proxy.ts                  # Next.js 16 proxy (session handling)
+│
+├── public/                       # Static SVG assets
+│   ├── file.svg  globe.svg  next.svg  vercel.svg  window.svg
+│
+├── .env.local                    # EODHD_API_KEY, SUPABASE_URL/KEY (not in git)
+├── .gitignore
+├── AGENTS.md                     # Project instructions for AI agents
+├── CLAUDE.md                     # Points to AGENTS.md
+├── README.md
+├── eslint.config.mjs
+├── next.config.ts
+├── postcss.config.mjs
+├── tsconfig.json
+├── package.json
+└── package-lock.json
