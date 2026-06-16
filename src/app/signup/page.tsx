@@ -14,7 +14,15 @@ export default function SignupPage() {
   async function handleSignup() {
     setLoading(true);
     setMessage(null);
-    const { error } = await supabase.auth.signUp({ email, password });
+    /* Verifieringslänken i mejlet ska landa på den riktiga domänen. I prod sätts
+       NEXT_PUBLIC_SITE_URL (Vercel-domänen); annars används aktuell origin. */
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ?? window.location.origin;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${siteUrl}/login` },
+    });
     setLoading(false);
 
     if (error) {

@@ -1,6 +1,12 @@
 import { Company, AskResponse, MetricsResponse } from "./types";
 
-const API_BASE = "http://127.0.0.1:8000/api/v1";
+/* Backend-origin. Sätts via NEXT_PUBLIC_API_BASE_URL i produktion (Railway-URL,
+   t.ex. https://thesis-api.up.railway.app) och faller tillbaka på lokal backend
+   under utveckling. Måste vara NEXT_PUBLIC_ eftersom askCompany anropas från
+   klienten. API:t versioneras i sökvägen (/api/v1) — den läggs på här. */
+const API_ORIGIN =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ?? "http://127.0.0.1:8000";
+const API_BASE = `${API_ORIGIN}/api/v1`;
 
 /** Hämtar ett bolag baserat på ticker. Kastar fel om bolaget inte finns. */
 export async function getCompany(ticker: string): Promise<Company> {
