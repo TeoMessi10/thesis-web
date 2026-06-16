@@ -3,7 +3,7 @@ import { Playfair_Display, JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import Grain from "@/components/Grain";
 import Nav from "@/components/Nav";
-import { getQuotes, fmtPrice } from "@/lib/market";
+import { getQuotes } from "@/lib/market";
 
 /* Typsnitt via next/font. Variabelnamnen (--font-playfair osv.) refereras av
    @theme-tokensen i globals.css — egna namn för att undvika cirkelreferens
@@ -35,15 +35,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  /* Riktig OMXS30-kurs i naven (EODHD, cachad 5 min). Saknas data döljs siffran. */
-  const quotes = await getQuotes(["OMXS30"]);
-  const omx = quotes.get("OMXS30");
+  /* OMXS30 i naven — SSR-värde som klienten sedan live-uppdaterar. */
+  const omx = (await getQuotes(["OMXS30"])).get("OMXS30");
 
   return (
     <html lang="sv" className={`${serif.variable} ${mono.variable} ${sans.variable}`}>
       <body className="bg-ink font-sans text-[16px] leading-[1.65] text-ivory">
         <Grain />
-        <Nav omxPrice={omx ? fmtPrice(omx.price) : undefined} />
+        <Nav initialOmx={omx} />
         {children}
       </body>
     </html>

@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCompany } from "@/lib/api";
 import { Company } from "@/lib/types";
-import { getQuotes, fmtPrice, fmtPct } from "@/lib/market";
+import { getQuotes } from "@/lib/market";
 import Footer from "@/components/Footer";
 import HeroSearch from "@/components/HeroSearch";
+import { LiveQuotesProvider, LivePrice, LivePct } from "@/components/LiveQuotes";
 
 const ML = "font-mono text-[11px] font-medium uppercase tracking-[.2em]";
 
@@ -82,6 +83,7 @@ export default async function DashboardPage() {
         </section>
 
         {/* ===== Bolag ===== */}
+        <LiveQuotesProvider tickers={AVAILABLE_TICKERS} initial={Object.fromEntries(quotes)}>
         <section aria-label="Tillgängliga bolag">
           <div className="mb-7 flex items-baseline justify-between">
             <h2 className="font-serif text-[27px] font-bold">Dina bolag</h2>
@@ -116,18 +118,20 @@ export default async function DashboardPage() {
                     {c.name}
                   </h3>
                   <div className={`${ML} mt-2 text-mute`}>{c.ticker}</div>
-                  {/* Riktig kurs (EODHD) — döljs när data saknas. */}
+                  {/* Riktig kurs (EODHD) — live via /api/quotes, döljs utan data. */}
                   {quotes.has(c.ticker) && (
                     <div className="mt-3.5 flex items-baseline gap-2.5 font-mono">
-                      <span className="text-[16px] font-bold text-ivory">
-                        {fmtPrice(quotes.get(c.ticker)!.price)}
-                      </span>
+                      <LivePrice
+                        ticker={c.ticker}
+                        initial={quotes.get(c.ticker)}
+                        className="text-[16px] font-bold text-ivory"
+                      />
                       <span className="text-[10px] uppercase tracking-[.1em] text-mute">SEK</span>
-                      <span
-                        className={`text-[12px] font-medium ${quotes.get(c.ticker)!.changePct >= 0 ? "text-sage" : "text-verm"}`}
-                      >
-                        {fmtPct(quotes.get(c.ticker)!.changePct)}
-                      </span>
+                      <LivePct
+                        ticker={c.ticker}
+                        initial={quotes.get(c.ticker)}
+                        className="text-[12px] font-medium"
+                      />
                     </div>
                   )}
                   <div className="mt-6 flex items-center justify-between border-t border-hair pt-4">
@@ -143,6 +147,7 @@ export default async function DashboardPage() {
             </div>
           )}
         </section>
+        </LiveQuotesProvider>
 
         {/* ===== Kom igång-tips ===== */}
         <section aria-label="Exempel på frågor" className="mt-[70px]">

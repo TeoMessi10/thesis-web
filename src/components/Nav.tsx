@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import NavAuth from "@/components/NavAuth";
+import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import { fmtPrice } from "@/lib/format";
+import type { Quote } from "@/lib/quote";
 
 const LINKS: { href: string; label: string }[] = [
   { href: "/", label: "Översikt" },
@@ -12,8 +15,10 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/#pris", label: "Pris" },
 ];
 
-export default function Nav({ omxPrice }: { omxPrice?: string }) {
+export default function Nav({ initialOmx }: { initialOmx?: Quote }) {
   const [scrolled, setScrolled] = useState(false);
+  const { quotes } = useLiveQuotes(["OMXS30"], initialOmx ? { OMXS30: initialOmx } : {});
+  const omx = quotes.OMXS30;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -58,9 +63,9 @@ export default function Nav({ omxPrice }: { omxPrice?: string }) {
             LIVE
           </span>
           {/* Visas bara med riktig kurs — inga påhittade siffror. */}
-          {omxPrice && (
+          {omx && (
             <span className="font-mono text-[11px] tracking-[.1em] text-mute max-[640px]:hidden">
-              OMXS30&nbsp;&nbsp;{omxPrice}
+              OMXS30&nbsp;&nbsp;<span className="tabular-nums">{fmtPrice(omx.price)}</span>
             </span>
           )}
           <NavAuth />

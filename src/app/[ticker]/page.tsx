@@ -3,16 +3,30 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Footer from "@/components/Footer";
 import TerrainCanvas from "@/components/TerrainCanvas";
-import { CountUp } from "@/components/Reveal";
 import PriceChart from "@/components/PriceChart";
+import { LiveQuotesProvider, LivePrice, LiveDelta } from "@/components/LiveQuotes";
 import AskBox from "./AskBox";
 
 /* ⚠️ BEHÅLL — befintliga API-anrop och typer. Designen byter ALDRIG ut detta. */
 import { getCompany, getMetrics } from "@/lib/api";
 import { Company, MetricsResponse } from "@/lib/types";
 import { getQuotes, getPriceHistory, buildChart, fmtSigned, fmtPct, Quote, ChartData } from "@/lib/market";
+import { getCompanyNews, type NewsArticle } from "@/lib/news";
 
 const ML = "font-mono text-[11px] font-medium uppercase tracking-[.2em]";
+
+/** Datum för nyhetslistan, sv-SE och Stockholmstid. Tom sträng vid ogiltigt. */
+function fmtNewsDate(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("sv-SE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/Stockholm",
+  }).format(d);
+}
 
 /** Fälten designen ritar. Mappa vår datatyp hit i adapt() — inte tvärtom. */
 interface CompanyView {
@@ -73,7 +87,13 @@ function adapt(
   };
 }
 
-export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {
+export default async function CompanyPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ ticker: string }>;
+  searchParams: Promise<{ q?: string }>;
+}) {
   /* AI-funktionaliteten (analys + Q&A) kräver inloggning. */
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
@@ -81,8 +101,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
     redirect("/login");
   }
 
-  /* params är en Promise i nya App Router — måste awaitas. */
+  /* params/searchParams är Promises i nya App Router — måste awaitas.
+     ?q= kommer från sökfältet och ställs automatiskt i AskBox. */
   const { ticker } = await params;
+  const { q: initialQuestion } = await searchParams;
 
   /* ⚠️ BEHÅLL — datahämtningen sker exakt som innan, inkl. felhantering. */
   let company: Company | null = null;
@@ -119,10 +141,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
   /* Riktig börsdata (EODHD) + nyckeltal extraherade ur rapporten (backend).
      Misslyckas nyckeltalshämtningen (t.ex. inga rapporter indexerade) döljs panelen. */
-  const [quotes, history, metricsRes] = await Promise.all([
+  const [quotes, history, metricsRes, news] = await Promise.all([
     getQuotes([company.ticker]),
     getPriceHistory(company.ticker),
     getMetrics(company.ticker).catch(() => null),
+    getCompanyNews(company.ticker).catch(() => [] as NewsArticle[]),
   ]);
   const v = adapt(
     company,
@@ -169,33 +192,40 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                 {v.ticker}&nbsp;&nbsp;·&nbsp;&nbsp;{v.listing}&nbsp;&nbsp;·&nbsp;&nbsp;{v.sector}
               </div>
             </div>
-            {/* Prisblocket visas först när riktig prisdata finns — inga påhittade nollor. */}
-            {v.price > 0 && (
-              <div className="text-right max-[640px]:text-left">
-                <div className="font-serif text-[clamp(40px,5.4vw,64px)] font-extrabold leading-none tracking-[-.015em]">
-                  <CountUp value={v.price} decimals={2} />
+            {/* Prisblocket visas först när riktig prisdata finns — inga påhittade
+                nollor. Kursen live-uppdateras via /api/quotes. */}
+            {quotes.get(v.ticker) && (
+              <LiveQuotesProvider tickers={[v.ticker]} initial={Object.fromEntries(quotes)}>
+                <div className="text-right max-[640px]:text-left">
+                  <div className="font-serif text-[clamp(40px,5.4vw,64px)] font-extrabold leading-none tracking-[-.015em]">
+                    <LivePrice ticker={v.ticker} initial={quotes.get(v.ticker)} className="tabular-nums" />
+                  </div>
+                  <div className={`${ML} mt-[5px] text-mute`}>SEK</div>
+                  <div className="mt-[9px] font-mono text-[12.5px]">
+                    <LiveDelta ticker={v.ticker} initial={quotes.get(v.ticker)} />
+                    &nbsp;&nbsp;<span className="text-mute">IDAG</span>
+                  </div>
                 </div>
-                <div className={`${ML} mt-[5px] text-mute`}>SEK</div>
-                <div className={`mt-[9px] font-mono text-[12.5px] ${v.up ? "text-sage" : "text-verm"}`}>
-                  {v.deltaAbs}&nbsp;&nbsp;{v.deltaPct}&nbsp;&nbsp;<span className="text-mute">IDAG</span>
-                </div>
-              </div>
+              </LiveQuotesProvider>
             )}
           </div>
         </div>
       </section>
 
-      {/* ===== Q&A — huvudnumret ===== */}
-      <div className="mx-auto max-w-[880px] px-12 pb-[90px] max-[1100px]:px-8 max-[640px]:px-5">
-        {/* ⚠️ BEHÅLL — AskBox med askCompany-logiken. */}
-        <AskBox ticker={v.ticker} companyName={v.name} />
-      </div>
+      {/* ===== AI-samtalet (huvudnumret) + rapportdata sida vid sida ===== */}
+      <div className="mx-auto max-w-wrap px-12 pb-[110px] max-[1100px]:px-8 max-[640px]:px-5">
+        <div
+          className={`grid gap-12 max-[1100px]:grid-cols-1 ${
+            hasAside ? "grid-cols-[1.6fr_1fr]" : "mx-auto max-w-[880px] grid-cols-1"
+          }`}
+        >
+          {/* Vänster: själva AI:t + redaktionellt material under */}
+          <div className="min-w-0">
+            {/* ⚠️ BEHÅLL — AskBox med askCompany-logiken. */}
+            <AskBox ticker={v.ticker} companyName={v.name} initialQuestion={initialQuestion} />
 
-      {/* ===== Redaktionellt material — visas när backend levererar det ===== */}
-      {(hasEditorial || hasAside) && (
-        <div className="mx-auto max-w-wrap px-12 pb-[110px] max-[1100px]:px-8 max-[640px]:px-5">
-          <div className="grid grid-cols-[1.5fr_1fr] gap-12 max-[1100px]:grid-cols-1">
-            <article>
+            {hasEditorial && (
+              <article className="mt-12 border-t border-hair pt-12">
               {v.summary.length > 0 && (
                 <>
                   <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[rgba(255,79,46,.4)] bg-[rgba(255,79,46,.06)] px-[15px] py-[7px] font-mono text-[10px] uppercase tracking-[.2em] text-verm">
@@ -287,9 +317,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                   </div>
                 </div>
               )}
-            </article>
+              </article>
+            )}
+          </div>
 
-            <aside className="flex flex-col gap-7">
+          {/* Höger: marknadsdata extraherad ur rapporten (klistrad vid scroll) */}
+          {hasAside && (
+            <aside className="flex flex-col gap-7 self-start min-[1101px]:sticky min-[1101px]:top-[88px]">
               {v.chart && (
                 <div className="rounded-[14px] border border-hair bg-[rgba(242,234,219,.018)] p-[22px]">
                   <div className="mb-4 flex items-center justify-between">
@@ -348,8 +382,44 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                 </div>
               )}
             </aside>
-          </div>
+          )}
         </div>
+      </div>
+
+      {/* ===== I nyheterna — färska artiklar om bolaget (EODHD, cachat 24 h) ===== */}
+      {news.length > 0 && (
+        <section className="mx-auto max-w-wrap px-12 pb-[120px] max-[1100px]:px-8 max-[640px]:px-5">
+          <div className="mb-7 flex items-baseline justify-between border-t border-hair pt-12">
+            <h2 className="font-serif text-[27px] font-bold">I nyheterna</h2>
+            <span className={`${ML} text-mute`}>Senaste om {v.name}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-10 gap-y-9 max-[760px]:grid-cols-1">
+            {news.map((a) => (
+              <a
+                key={a.link}
+                href={a.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex h-full flex-col rounded-[16px] border border-hair bg-[rgba(242,234,219,.018)] p-8 transition-[border-color,transform,box-shadow] duration-300 ease-silk hover:-translate-y-0.5 hover:border-hair-2 hover:shadow-[0_20px_50px_rgba(0,0,0,.35)] max-[640px]:p-6"
+              >
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <span className={`${ML} truncate text-mute`}>
+                    {[fmtNewsDate(a.date), a.source].filter(Boolean).join("\u2002·\u2002")}
+                  </span>
+                  <span className="shrink-0 text-sm text-verm opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    ↗
+                  </span>
+                </div>
+                <h3 className="font-serif text-[18px] font-bold leading-snug transition-colors duration-300 group-hover:text-verm">
+                  {a.title}
+                </h3>
+                {a.snippet && (
+                  <p className="mt-3.5 line-clamp-3 text-[13px] leading-[1.65] text-mute">{a.snippet}…</p>
+                )}
+              </a>
+            ))}
+          </div>
+        </section>
       )}
 
       <Footer />

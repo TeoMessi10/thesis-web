@@ -73,7 +73,15 @@ function Diamond({ size = 34 }: { size?: number }) {
   );
 }
 
-export default function AskBox({ ticker, companyName }: { ticker: string; companyName: string }) {
+export default function AskBox({
+  ticker,
+  companyName,
+  initialQuestion,
+}: {
+  ticker: string;
+  companyName: string;
+  initialQuestion?: string;
+}) {
   /* ⚠️ BEHÅLL — samma state-mönster och anrop som innan, nu med historik. */
   const [question, setQuestion] = useState("");
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
@@ -81,6 +89,7 @@ export default function AskBox({ ticker, companyName }: { ticker: string; compan
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const askedInitial = useRef(false);
 
   const loading = pending !== null;
 
@@ -88,6 +97,16 @@ export default function AskBox({ ticker, companyName }: { ticker: string; compan
     if (exchanges.length === 0 && !loading) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [exchanges, loading]);
+
+  /* Frågan från sökfältet (?q=) ställs automatiskt en gång vid laddning. */
+  useEffect(() => {
+    if (askedInitial.current) return;
+    const q = initialQuestion?.trim();
+    if (!q) return;
+    askedInitial.current = true;
+    submit(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion]);
 
   async function submit(raw: string) {
     const q = raw.trim();

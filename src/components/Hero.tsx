@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import TerrainCanvas from "@/components/TerrainCanvas";
-import HeroSearch from "@/components/HeroSearch";
-import Ticker, { TickItem } from "@/components/Ticker";
+import HeroCta from "@/components/HeroCta";
+import LiveTicker from "@/components/LiveTicker";
+import type { QuotesRecord } from "@/hooks/useLiveQuotes";
 import { useReducedMotion } from "@/hooks/useMotion";
 
 const ML = "font-mono text-[11px] font-medium uppercase tracking-[.2em]";
@@ -27,11 +28,13 @@ const HEADLINE: { text: string; cls: string }[] = [
 
 export default function Hero({
   mastDate,
-  ticks,
+  tapeOrder,
+  initialQuotes,
   deltas,
 }: {
   mastDate: string;
-  ticks?: TickItem[];
+  tapeOrder: string[];
+  initialQuotes: QuotesRecord;
   deltas?: Record<string, { delta: string; up: boolean }>;
 }) {
   const reduced = useReducedMotion();
@@ -106,7 +109,7 @@ export default function Hero({
               }`}
               style={reduced ? undefined : { transitionDelay: "560ms" }}
             >
-              <HeroSearch />
+              <HeroCta />
             </div>
           </div>
 
@@ -159,7 +162,7 @@ export default function Hero({
         </div>
       </div>
 
-      <Ticker ticks={ticks} />
+      <LiveTicker order={tapeOrder} initial={initialQuotes} />
     </header>
   );
 }

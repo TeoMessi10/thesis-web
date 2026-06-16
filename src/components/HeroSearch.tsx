@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "@/hooks/useMotion";
+import { resolveQuery } from "@/lib/companies";
 
 const DEFAULT_PLACEHOLDER = "Sök bolag, ticker eller ställ en fråga…";
 const QUERIES = [
@@ -20,6 +21,7 @@ export default function HeroSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [placeholder, setPlaceholder] = useState(DEFAULT_PLACEHOLDER);
+  const [error, setError] = useState<string | null>(null);
   const pausedRef = useRef(false);
 
   /* ⌘K / Ctrl+K fokuserar fältet */
@@ -75,12 +77,27 @@ export default function HeroSearch() {
     };
   }, [reduced]);
 
-  const submit = (q: string) => {
-    const trimmed = q.trim();
+  const submit = (raw: string) => {
+    const trimmed = raw.trim();
     if (!trimmed) return;
-    /* TODO(koppla): riktig söklogik (lookup via api.ts) när sök-endpoint finns.
-       Tills dess: ticker-route med versaler — backend matchar case-känsligt. */
-    router.push(`/${encodeURIComponent(trimmed.toUpperCase().replace(/\s+/g, "-"))}`);
+
+    /* Skilj på "öppna bolag" och "ställ en fråga". Tickern hör hemma i
+       URL:ens path-segment; fritextfrågan skickas som ?q= och ställs
+       automatiskt av AskBox via POST /companies/{ticker}/ask. */
+    const { ticker, question } = resolveQuery(trimmed);
+
+    if (!ticker) {
+      setError(
+        "Vi kunde inte avgöra vilket bolag du menar. Börja med en ticker, t.ex. \u201eEVO, vilka risker finns?\u201d",
+      );
+      return;
+    }
+
+    setError(null);
+    const href = question
+      ? `/${ticker}?q=${encodeURIComponent(question)}`
+      : `/${ticker}`;
+    router.push(href);
   };
 
   return (
@@ -100,7 +117,10 @@ export default function HeroSearch() {
           ref={inputRef}
           type="text"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (error) setError(null);
+          }}
           onFocus={() => {
             pausedRef.current = true;
           }}
@@ -122,6 +142,15 @@ export default function HeroSearch() {
           →
         </button>
       </form>
+
+      {error && (
+        <p
+          role="alert"
+          className="mt-3 max-w-[620px] rounded-[10px] border border-[rgba(255,79,46,.35)] bg-[rgba(255,79,46,.05)] px-4 py-2.5 text-[13px] leading-[1.5] text-verm"
+        >
+          {error}
+        </p>
+      )}
 
       <div className="mt-5 flex flex-wrap items-center gap-2.5">
         <span className="mr-1 font-mono text-[11px] font-medium uppercase tracking-[.2em] text-mute">Prova</span>

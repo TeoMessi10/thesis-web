@@ -5,8 +5,7 @@ import { TiltShowcase, MagneticButton } from "@/components/Tilt";
 import PriceChart from "@/components/PriceChart";
 import ThesisCard from "@/components/ThesisCard";
 import QADemo from "@/components/QADemo";
-import { TickItem } from "@/components/Ticker";
-import { getQuotes, getPriceHistory, buildChart, fmtPrice, fmtSigned, fmtPct } from "@/lib/market";
+import { getQuotes, getPriceHistory, buildChart, fmtSigned, fmtPct } from "@/lib/market";
 
 /* Nordiska symboler i tickertejpen — riktiga kurser via EODHD. */
 const TAPE = ["OMXS30", "VOLV-B", "ERIC-B", "INVE-B", "ATCO-A", "SEB-A", "HM-B", "EVO", "SAND", "ABB"];
@@ -44,10 +43,8 @@ export default async function Home() {
     getPriceHistory("VOLV-B"),
   ]);
 
-  const ticks: TickItem[] = TAPE.filter((t) => quotes.has(t)).map((t) => {
-    const q = quotes.get(t)!;
-    return [t, fmtPrice(q.price), fmtPct(q.changePct), q.changePct >= 0];
-  });
+  /* Råa kurser till tejpen — klienten live-uppdaterar dem via /api/quotes. */
+  const initialQuotes = Object.fromEntries(quotes);
 
   const deltas = Object.fromEntries(
     ["VOLV-B", "ERIC-B", "EVO", "ATCO-A"]
@@ -63,7 +60,7 @@ export default async function Home() {
 
   return (
     <main>
-      <Hero mastDate={mastDate} ticks={ticks.length > 0 ? ticks : undefined} deltas={deltas} />
+      <Hero mastDate={mastDate} tapeOrder={TAPE} initialQuotes={initialQuotes} deltas={deltas} />
 
       {/* ============ SHOWCASE: BOLAGSSIDAN ============ */}
       <section id="bolag" className="relative py-[150px] max-[640px]:py-[100px]">
