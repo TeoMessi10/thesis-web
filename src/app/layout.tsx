@@ -4,6 +4,7 @@ import "./globals.css";
 import Grain from "@/components/Grain";
 import Nav from "@/components/Nav";
 import { getQuotes } from "@/lib/market";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 /* Typsnitt via next/font. Variabelnamnen (--font-playfair osv.) refereras av
    @theme-tokensen i globals.css — egna namn för att undvika cirkelreferens
@@ -44,6 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Grain />
         <Nav initialOmx={omx} />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
