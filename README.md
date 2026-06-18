@@ -240,3 +240,6 @@ The app deploys cleanly to [Vercel](https://vercel.com/new). Remember to set the
 environment variables (`NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `EODHD_API_KEY`) in the project settings, and
 point the API base in `src/lib/api.ts` at the deployed backend.
+
+## Link to the site (still testing it )
+https://thesis-black.vercel.app
